@@ -1,0 +1,43 @@
+version: "3.8"
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cc_fraud
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./cc_fraud.sql:/docker-entrypoint-initdb.d/cc_fraud.sql:ro
+    ports:
+      - "3307:3306"
+  web:
+    build: .
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASS=root
+      - DB_NAME=cc_fraud
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+  mlworker:
+    image: python:3.10-slim
+    volumes:
+      - ./ml:/app
+    working_dir: /app
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASS=root
+      - DB_NAME=cc_fraud
+    entrypoint: ["python","train_and_predict.py"]
+    depends_on:
+      - db
+      - web
+volumes:
+  db_data:
